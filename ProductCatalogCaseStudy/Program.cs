@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using ProductCatalogCaseStudy.Models;
-using Microsoft.Extensions.Logging;
-using System.Text;
+using Microsoft.OpenApi;
 using ProductCatalogCaseStudy.Data;
+using ProductCatalogCaseStudy.DTO;
+using ProductCatalogCaseStudy.Models;
+using System.Reflection;
+using System.Text;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -17,8 +20,25 @@ connectionString.Append("TrustServerCertificate=True");
 
 builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString.ToString()));
-builder.Services.AddAutoMapper(typeof(Program).Assembly);
+builder.Services.AddAutoMapper(cfg => { }, typeof(MappingProfile));
 builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Version = "v1",
+        Title = "Product Catalog API",
+        Description = "An ASP.NET Core Web API for a catalog of products. Study Case part of the Alza recruitement process",
+        Contact = new OpenApiContact
+        {
+            Name = "Author",
+            Url = new Uri("https://www.linkedin.com/in/pierre-francois-giraud-835288108/")
+        }
+    });
+});
 
 builder.Logging.AddConsole();
 
@@ -35,10 +55,10 @@ using (var scope = app.Services.CreateScope())
         context.Database.Migrate();
 
         // An initial seed of data is inserted in the DB
-            var logger = services.GetRequiredService<ILogger<Program>>();
+        var logger = services.GetRequiredService<ILogger<Program>>();
         if(ProductSeeder.Initialize(context, "initial_seed_db.json", logger))
-            {
-                logger.LogInformation("Database seeded with initial product data.");
+        {
+            logger.LogInformation("Database seeded with initial product data.");
         }
     }
     catch (Exception ex)
@@ -59,5 +79,15 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+        options.RoutePrefix = string.Empty;
+    });
+}
 
 app.Run();
