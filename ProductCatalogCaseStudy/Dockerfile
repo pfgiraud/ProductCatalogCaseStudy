@@ -19,6 +19,7 @@ RUN dotnet publish -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
+COPY initial_seed_db.json ./Data/
 
 # Expose the internal container port
 EXPOSE 8080
