@@ -7,11 +7,9 @@ namespace ProductCatalogCaseStudy.DTO
     {
         public MappingProfile()
         {
-            // Entity to DTO map
-            CreateMap<Product, ProductPatchDto>();
-
             // Map DTO back to Entity for PATCH updates:
-            CreateMap<ProductPatchDto, Product>();
+            CreateMap<ProductPatchDto, Product>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
         }
     }
 }

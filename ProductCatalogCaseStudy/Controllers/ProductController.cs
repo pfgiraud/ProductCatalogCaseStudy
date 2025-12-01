@@ -1,13 +1,8 @@
 using AutoMapper;
-using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProductCatalogCaseStudy.DTO;
 using ProductCatalogCaseStudy.Models;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 namespace ProductCatalogCaseStudy.Controllers
 {
     /// <summary>
@@ -66,14 +61,20 @@ namespace ProductCatalogCaseStudy.Controllers
         /// Use 'application/json-patch+json' content type.
         /// </remarks>
         /// <param name="id">The unique identifier of the product to update</param>
-        /// <param name="patchDocument">The updated product object</param>
+        /// <param name="productDto">The updated product object</param>
         /// <returns>A status code indicating the result of the update</returns>
         [HttpPatch("{id}")]
         [Consumes("application/json-patch+json")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> UpdateProduct([FromRoute] int id, [FromBody] JsonPatchDocument<ProductPatchDto> patchDocument)
+        public async Task<IActionResult> UpdateProduct([FromRoute] int id, [FromBody] ProductPatchDto productDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             var product = await _context.Products.FindAsync(id);
             // Check if the ID in the URL matches the ID in the product body
             if (product is null)
@@ -81,9 +82,11 @@ namespace ProductCatalogCaseStudy.Controllers
                 return NotFound("Product ID not found");
             }
 
-            // Apply the patch (Get DTO from product, apply JSON to DTO, then apply DTO back to product)
-            var productDto = _mapper.Map<ProductPatchDto>(product);
-            patchDocument.ApplyTo(productDto);
+            if (productDto == null)
+            {
+                return BadRequest("Request body cannot be empty.");
+            }
+
             _mapper.Map(productDto, product);
             product.UpdatedAt = DateTime.UtcNow;
 
