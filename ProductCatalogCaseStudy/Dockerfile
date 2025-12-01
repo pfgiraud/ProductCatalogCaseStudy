@@ -1,32 +1,28 @@
-# Consultez https://aka.ms/customizecontainer pour savoir comment personnaliser votre conteneur de débogage et comment Visual Studio utilise ce Dockerfile pour générer vos images afin d’accélérer le débogage.
+# Use the official Microsoft SDK image to build the application
+# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
 
-# En fonction du système d’exploitation du ou des ordinateurs hôtes qui génèrent ou exécutent les conteneurs, vous devrez peut-être modifier l’image spécifiée dans l’instruction FROM.
-# Pour obtenir plus d’informations, veuillez consulter https://aka.ms/containercompat
+# Copy the project files and restore dependencies
+# This step is often cached if only source code changes
+COPY *.csproj .
+RUN dotnet restore
 
-# Cet index est utilisé lors de l’exécution à partir de VS en mode rapide (par défaut pour la configuration de débogage)
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-nanoserver-ltsc2022 AS base
+# Copy the rest of the application source code
+COPY . .
+
+# Publish the application in Release configuration
+RUN dotnet publish -c Release -o /app/publish
+
+# Stage 2: Runtime
+# Use the official ASP.NET runtime image for the final container
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+COPY --from=build /app/publish .
+
+# Expose the internal container port
 EXPOSE 8080
 EXPOSE 8081
 
-
-# Cette phase est utilisée pour générer le projet de service
-FROM mcr.microsoft.com/dotnet/sdk:10.0-nanoserver-ltsc2022 AS build
-ARG BUILD_CONFIGURATION=Release
-WORKDIR /src
-COPY ["ProductCatalogCaseStudy.csproj", "."]
-RUN dotnet restore "./ProductCatalogCaseStudy.csproj"
-COPY . .
-WORKDIR "/src/."
-RUN dotnet build "./ProductCatalogCaseStudy.csproj" -c %BUILD_CONFIGURATION% -o /app/build
-
-# Cette étape permet de publier le projet de service à copier dans la phase finale
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./ProductCatalogCaseStudy.csproj" -c %BUILD_CONFIGURATION% -o /app/publish /p:UseAppHost=false
-
-# Cette phase est utilisée en production ou lors de l’exécution à partir de VS en mode normal (par défaut quand la configuration de débogage n’est pas utilisée)
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
+# Entrypoint for the application
 ENTRYPOINT ["dotnet", "ProductCatalogCaseStudy.dll"]

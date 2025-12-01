@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # --- MSSQL Database Service ---
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql_db
+    env_file:
+      - .env
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      ACCEPT_EULA: 'Y'
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./mssql_db_init.sql:/usr/config/mssql_db_init.template.sql
+    # Create DB and/or non admin user at startup if non existing
+    command: > 
+      /bin/bash -c "
+        /opt/mssql/bin/sqlservr & 
+
+        echo 'Waiting for SQL Server to be fully operational...'
+        RETRIES=60;
+        while ! /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P ${SA_PASSWORD} -C -Q 'SELECT 1' > /dev/null 2>&1 && [ $$RETRIES -gt 0 ]; do
+          echo -n '.';
+          sleep 2;
+          RETRIES=$$((RETRIES - 1));
+        done
+
+        if [ $$RETRIES -le 0 ]; then
+          echo 'Timeout waiting for SQL Server. Initialization failed.'
+          exit 1
+        fi
+
+        echo 'SQL Server ready. Executing initialization script...'
+        # Substitute environment variables into the template and execute the resulting SQL
+        cat /usr/config/mssql_db_init.template.sql |
+        sed "s/__DB_NAME__/$DB_NAME/g" | 
+        sed "s/__DB_USER__/$DB_USER/g" | 
+        sed "s/__DB_PASSWORD__/$DB_PASSWORD/g" > /tmp/init-db.sql
+        /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P ${SA_PASSWORD} -C -i /tmp/init-db.sql
+        echo 'Database initialization complete.'
+        sleep infinity"
+    restart: always
+
+  # --- Product Catalog API ---
+  productcatalogcasestudy:
+    image: ${DOCKER_REGISTRY-}productcatalogcasestudy
+    build:
+      context: ProductCatalogCaseStudy
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: "db"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_HTTPS_PORTS: "443"
+      ASPNETCORE_HTTP_PORTS: "80"
+    depends_on:
+      - db
+    restart: always
+
+volumes:
+  sqlserver_data:
