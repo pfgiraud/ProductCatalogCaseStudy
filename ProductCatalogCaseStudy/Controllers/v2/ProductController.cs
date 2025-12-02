@@ -46,7 +46,7 @@ namespace ProductCatalogCaseStudy.Controllers.V2
                 .ToListAsync();
 
             // Simple query to fetch all products from the database
-            return products;
+            return Ok(products);
         }
 
         // READ ONE

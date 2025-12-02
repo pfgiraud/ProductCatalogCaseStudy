@@ -28,7 +28,7 @@ namespace ProductCatalogCaseStudy.Controllers.V1
         public async Task<ActionResult<IEnumerable<Product>>> GetAllProducts()
         {
             // Simple query to fetch all products from the database
-            return await _context.Products.ToListAsync();
+            return Ok(await _context.Products.ToListAsync());
         }
 
         // READ ONE
