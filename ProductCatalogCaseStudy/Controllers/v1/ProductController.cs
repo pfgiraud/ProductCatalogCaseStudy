@@ -1,14 +1,17 @@
+using Asp.Versioning;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProductCatalogCaseStudy.DTO;
 using ProductCatalogCaseStudy.Models;
-namespace ProductCatalogCaseStudy.Controllers
+namespace ProductCatalogCaseStudy.Controllers.V1
 {
     /// <summary>
     /// The product catalog
     /// </summary>
-    [Route("api/[controller]s")]
+    [Route("api/v{version:apiVersion}/[controller]s")]
+    [ApiVersion("1", Deprecated = true)]
+    [ApiExplorerSettings(GroupName = "v1")]
     [ApiController]
     public class ProductController(AppDbContext context, IMapper mapper) : ControllerBase
     {

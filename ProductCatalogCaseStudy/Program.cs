@@ -1,4 +1,7 @@
+using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using ProductCatalogCaseStudy.Data;
 using ProductCatalogCaseStudy.DTO;
@@ -10,17 +13,39 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-// Load connection string parameters from env vars for db connection
+// ----------------------------------------------------------------------
+// DB Connection (with connection parameters from env vars)
+// ----------------------------------------------------------------------
 var connectionString = new StringBuilder();
 connectionString.Append($"Server={builder.Configuration["DB_HOST"]};");
 connectionString.Append($"Database={builder.Configuration["DB_NAME"]};");
 connectionString.Append($"User Id={builder.Configuration["DB_USER"]};");
 connectionString.Append($"Password={builder.Configuration["DB_PASSWORD"]};");
 connectionString.Append("TrustServerCertificate=True");
-
-builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString.ToString()));
-builder.Services.AddAutoMapper(cfg => { }, typeof(MappingProfile));
+
+// ----------------------------------------------------------------------
+// API Versioning Configuration
+// ----------------------------------------------------------------------
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+})
+.AddMvc()
+.AddApiExplorer(options =>
+{
+    // Format the version as "'v'major" (e.g., v1, v2)
+    options.GroupNameFormat = "'v'VV";
+    // Substitutes the API version in the route template (e.g., /v1/products)
+    options.SubstituteApiVersionInUrl = true;
+});
+builder.Services.AddControllers();
+
+// ----------------------------------------------------------------------
+// OpenAPI documentation
+// ----------------------------------------------------------------------
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -40,6 +65,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+builder.Services.AddAutoMapper(cfg => { }, typeof(MappingProfile));
 builder.Logging.AddConsole();
 
 var app = builder.Build();
