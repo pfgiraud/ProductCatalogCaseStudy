@@ -2,7 +2,7 @@ using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi;
+using ProductCatalogCaseStudy;
 using ProductCatalogCaseStudy.Data;
 using ProductCatalogCaseStudy.DTO;
 using ProductCatalogCaseStudy.Models;
@@ -48,23 +48,16 @@ builder.Services.AddControllers();
 // ----------------------------------------------------------------------
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddTransient<IConfigureOptions<Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions>, ConfigureSwaggerOptions>();
 builder.Services.AddSwaggerGen(options =>
 {
     var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Version = "v1",
-        Title = "Product Catalog API",
-        Description = "An ASP.NET Core Web API for a catalog of products. Study Case part of the Alza recruitement process",
-        Contact = new OpenApiContact
-        {
-            Name = "Author",
-            Url = new Uri("https://www.linkedin.com/in/pierre-francois-giraud-835288108/")
-        }
-    });
 });
 
+// ----------------------------------------------------------------------
+// Other services
+// ----------------------------------------------------------------------
 builder.Services.AddAutoMapper(cfg => { }, typeof(MappingProfile));
 builder.Logging.AddConsole();
 
@@ -108,11 +101,17 @@ app.MapControllers();
 
 if (app.Environment.IsDevelopment())
 {
+    var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
-        options.RoutePrefix = string.Empty;
+        foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
+        {
+            // Dynamically define the Swagger endpoint for each version
+            options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json",
+                                    $"v{description.ApiVersion.ToString()}");
+        }
     });
 }
 
