@@ -5,7 +5,7 @@ namespace ProductCatalogCaseStudy.DTO
 {
     /// <summary>
     /// Represents the fields that can be updated during a PATCH operation on a Product.
-    /// Only include fields here that are safe to modify via a patch request.
+    /// Only include fields here that are allowed for modification via a patch request.
     /// </summary>
     public class ProductPatchDto
     {

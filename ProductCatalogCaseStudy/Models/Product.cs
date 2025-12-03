@@ -1,6 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
+
+#pragma warning disable CS1591 // XML Comment missing for public member
 namespace ProductCatalogCaseStudy.Models
 {
     /// <summary>
@@ -15,6 +17,7 @@ namespace ProductCatalogCaseStudy.Models
 
         [Required]
         [MaxLength(255)]
+
         public required string Name { get; set; }
 
         public string? Description { get; set; }
@@ -52,3 +55,4 @@ namespace ProductCatalogCaseStudy.Models
         public bool IsDeactived { get; set; } = false;
     }
 }
+#pragma warning restore CS1591 // XML Comment missing for public member

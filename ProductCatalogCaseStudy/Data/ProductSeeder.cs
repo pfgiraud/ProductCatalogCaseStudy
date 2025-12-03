@@ -4,10 +4,15 @@ using System.Text.Json;
 
 namespace ProductCatalogCaseStudy.Data
 {
-    // This static class handles reading the external JSON seed data and inserting it
+    /// <summary>
+    /// This static class handles reading the external JSON seed data and inserting it in the database.
+    /// </summary>
     public static class ProductSeeder
     {
 
+        /// <summary>
+        /// Read the external JSON seed data and insert it in the database  
+        /// </summary>
         public static bool Initialize(AppDbContext context, string jsonFilePath, ILogger logger)
         {
             // Check if the database already has been seeded.
