@@ -23,7 +23,7 @@ namespace ProductCatalogCaseStudy.Controllers.V2
         /// Retrieves a list of all products in the catalog.
         /// </summary>
         /// <remarks>
-        /// V2 returns only active products and supports pagination.
+        /// V2 supports pagination.
         /// </remarks>
         /// <param name="pageNumber">The page number to retrieve (1-based).</param>
         /// <param name="pageSize">The number of items per page (default is 10).</param>
@@ -40,7 +40,6 @@ namespace ProductCatalogCaseStudy.Controllers.V2
             if (pageSize < 1) pageSize = 1;
 
             var products = await _context.Products
-                .Where(p => !p.IsDeactived)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

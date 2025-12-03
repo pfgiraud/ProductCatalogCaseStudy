@@ -9,7 +9,7 @@ using System.Text.Json;
 
 namespace ProductCatalogCaseStudy.Tests.Controllers.V2
 {
-    public class ProductControllerV2Tests
+    public class ProductControllerV2Tests: IDisposable
     {
         private readonly AppDbContext _context;
         private readonly ProductController _controllerV2;
@@ -61,7 +61,7 @@ namespace ProductCatalogCaseStudy.Tests.Controllers.V2
             _context.Products.RemoveRange(_context.Products);
             _context.SaveChanges();
 
-            var jsonPath = Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, "test_mock_data.json");
+            var jsonPath = Path.Combine(Directory.GetParent(Environment.CurrentDirectory)!.Parent!.Parent!.FullName, "test_mock_data.json");
 
             // Ensure the JSON file exists (it should be copied to the output directory)
             if (!File.Exists(jsonPath))
@@ -85,7 +85,7 @@ namespace ProductCatalogCaseStudy.Tests.Controllers.V2
         }
 
         [Fact]
-        public async Task GetProducts_ShouldReturnOnlyActiveProducts()
+        public async Task GetAllProducts_ShouldReturnAllProducts()
         {
             // Act
             var result = await _controllerV2.GetAllProducts(1, int.MaxValue);
@@ -96,11 +96,11 @@ namespace ProductCatalogCaseStudy.Tests.Controllers.V2
             var okResult = result.Result as OkObjectResult;
             Assert.NotNull(okResult);
             var products = Assert.IsType<List<Product>>(okResult.Value);
-            Assert.Equal(Math.Ceiling(TotalProductCount / 2.0), products.Count); // 1 out of 2 products is deactivated
+            Assert.Equal(TotalProductCount, products.Count); // 1 out of 2 products is deactivated
         }
 
         [Fact]
-        public async Task GetProducts_V2_DefaultPagination_ReturnsFirstPageOfTen()
+        public async Task GetAllProducts_DefaultPagination_ReturnsFirstPageOfTen()
         {
             // Act
             var result = await _controllerV2.GetAllProducts();
@@ -112,13 +112,13 @@ namespace ProductCatalogCaseStudy.Tests.Controllers.V2
             Assert.NotNull(okResult);
             var products = Assert.IsType<List<Product>>(okResult.Value);
 
-            // Ensure the items are the first 10 active products (IDs 1, 3, 5, 7, 9, 11, 13, 15, 17, 19)
+            // Ensure the items are the first 10 products (IDs 1, 3, 5, 7, 9, 11, 13, 15, 17, 19)
             Assert.Equal(1, products[0].Id);
-            Assert.Equal(19, products.Last().Id);
+            Assert.Equal(10, products.Last().Id);
         }
 
         [Fact]
-        public async Task GetProducts_V2_SecondPage_ReturnsCorrectSubset()
+        public async Task GetAllProducts_SecondPage_ReturnsCorrectSubset()
         {
             // Act: pageNumber=2, pageSize=5
             var result = await _controllerV2.GetAllProducts(pageNumber: 2, pageSize: 5);
@@ -133,15 +133,15 @@ namespace ProductCatalogCaseStudy.Tests.Controllers.V2
             // Page 2 (items 6 through 10) should be IDs 11, 13, 15, 17, 19 (5 items total)
             Assert.Equal(5, products.Count);
 
-            Assert.Equal(11, products[0].Id);
-            Assert.Equal(19, products.Last().Id);
+            Assert.Equal(6, products[0].Id);
+            Assert.Equal(10, products.Last().Id);
         }
 
         [Fact]
-        public async Task GetProducts_V2_OutOfBoundsPage_ReturnsEmptyList()
+        public async Task GetAllProducts_OutOfBoundsPage_ReturnsEmptyList()
         {
-            // Act: pageNumber=3, pageSize=10
-            var result = await _controllerV2.GetAllProducts(pageNumber: 3, pageSize: 10);
+            // Act
+            var result = await _controllerV2.GetAllProducts(pageNumber: 4, pageSize: 10);
 
             // Assert
             Assert.NotNull(result);
