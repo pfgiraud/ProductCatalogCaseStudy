@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
+  <Project Path="ProductCatalogCaseStudy.Tests/ProductCatalogCaseStudy.Tests.csproj" Id="3f2464b9-bbcd-4d2b-98d5-bd2351a0b59a" />
+  <Project Path="ProductCatalogCaseStudy/ProductCatalogCaseStudy.csproj" />
+</Solution>
