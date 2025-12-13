@@ -6,6 +6,10 @@ using ProductCatalogCaseStudy;
 using ProductCatalogCaseStudy.Data;
 using ProductCatalogCaseStudy.DTO;
 using ProductCatalogCaseStudy.Models;
+using ProductCatalogCaseStudy.Repositories;
+using ProductCatalogCaseStudy.Repositories.Contracts;
+using ProductCatalogCaseStudy.Services;
+using ProductCatalogCaseStudy.Services.Contracts;
 using System.Reflection;
 using System.Text;
 
@@ -54,6 +58,12 @@ builder.Services.AddSwaggerGen(options =>
     var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 });
+
+// ----------------------------------------------------------------------
+// Register Service and Data access layers implmentations
+// ----------------------------------------------------------------------
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IProductService, ProductService>();
 
 // ----------------------------------------------------------------------
 // Other services
