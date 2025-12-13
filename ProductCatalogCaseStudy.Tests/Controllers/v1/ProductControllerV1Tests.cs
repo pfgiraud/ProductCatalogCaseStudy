@@ -5,65 +5,29 @@ using Moq;
 using ProductCatalogCaseStudy.Controllers.V1;
 using ProductCatalogCaseStudy.DTO;
 using ProductCatalogCaseStudy.Models;
+using ProductCatalogCaseStudy.Services.Contracts;
 using System.Text.Json;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace ProductCatalogCaseStudy.Tests.Controllers.V1
 {
-    public class ProductControllerV1Tests : IDisposable
+    public class ProductControllerV1Tests
     {
-        private readonly AppDbContext _context;
-        private readonly ProductController _controllerV1; 
-
-        // Total count of products seeded (25)
-        private const int TotalProductCount = 25; 
+        private readonly ProductController _controllerV1;
+        private readonly Mock<IProductService> _mockService;
+        private readonly List<Product> _sampleProducts;
 
         public ProductControllerV1Tests()
         {
-            _context = this.getDbContext();
-
-            // Create a real AutoMapper instance
-
-            var mapperMock = new Mock<IMapper>();
-            mapperMock
-                .Setup(m => m.Map(It.IsAny<ProductPatchDto>(), It.IsAny<Product>()))
-                .Callback<ProductPatchDto, Product>((src, dest) =>
-                {
-                    if (src.Name is not null) dest.Name = src.Name;
-                    if (src.Description is not null) dest.Description = src.Description;
-                    if (src.ImgUri is not null) dest.ImgUri = src.ImgUri;
-                    if (src.Price.HasValue) dest.Price = src.Price.Value;
-                    if (src.Currency is not null) dest.Currency = src.Currency;
-                    if (src.StockQuantity.HasValue) dest.StockQuantity = src.StockQuantity.Value;
-                });
-
-            // Instantiate V1 Controller
-            _controllerV1 = new ProductController(
-                _context,
-                mapperMock.Object
-            );
-
-            SeedDatabase();
+            _mockService = new Mock<IProductService>();
+            _controllerV1 = new ProductController(_mockService.Object);
+            _sampleProducts = LoadSampleProducts();
         }
 
-        private AppDbContext getDbContext(string connection = "DataSource=:memory:")
+        private static List<Product> LoadSampleProducts()
         {
-            var options = new DbContextOptionsBuilder<AppDbContext>()
-                .UseSqlite(connection)
-                .Options;
-            var context = new AppDbContext(options);
-            context.Database.OpenConnection();
-            context.Database.EnsureCreated();
-            return context;
-        }
+            var jsonPath = Path.Combine(Directory.GetParent(Environment.CurrentDirectory)!.Parent!.Parent!.FullName, "test_mock_data.json");
 
-        private void SeedDatabase()
-        {
-            _context.Products.RemoveRange(_context.Products);
-            _context.SaveChanges();
-
-            var jsonPath = Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, "test_mock_data.json");
-            
             // Ensure the JSON file exists (it should be copied to the output directory)
             if (!File.Exists(jsonPath))
             {
@@ -71,143 +35,82 @@ namespace ProductCatalogCaseStudy.Tests.Controllers.V1
             }
 
             var jsonString = File.ReadAllText(jsonPath);
-            
+
             // Deserialize the products list
-            var products = JsonSerializer.Deserialize<List<Product>>(jsonString, new JsonSerializerOptions
+            return JsonSerializer.Deserialize<List<Product>>(jsonString, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true // Handle case differences between JSON and C#
-            });
-
-            if (products != null)
-            {
-                _context.Products.AddRange(products);
-                _context.SaveChanges();
-            }
+            }) ?? [];
         }
 
         [Fact]
         public async Task GetAllProducts_ShouldReturnAllProducts()
         {
+            _mockService.Setup(s => s.GetProducts())
+                        .ReturnsAsync(_sampleProducts.ToList());
             // Act
-            var result = await _controllerV1.GetAllProducts();
+            var result = (await _controllerV1.GetAllProducts()).Result as OkObjectResult;
 
             // Assert
             Assert.NotNull(result);
-            Assert.IsType<OkObjectResult>(result.Result);
-            var okResult = result.Result as OkObjectResult;
-            Assert.NotNull(okResult);
-            var products = Assert.IsType<List<Product>>(okResult.Value);
-            Assert.Equal(TotalProductCount, products.Count);
+            var products = Assert.IsType<List<Product>>(result.Value);
+            Assert.Equal(_sampleProducts.Count, products.Count);
+            _mockService.Verify(s => s.GetProducts(), Times.Once);
         }
 
         [Fact]
         public async Task GetProductById_ProductExists_ReturnsProduct()
         {
             // Arrange
-            int existentId = 9;
+            const int existingId = 9;
+            var expectedProduct = _sampleProducts.First(p => p.Id == existingId);
+            _mockService.Setup(s => s.GetProductById(existingId))
+                        .ReturnsAsync(expectedProduct);
 
             // Act
-            var result = await _controllerV1.GetProductById(existentId);
+            var result = (await _controllerV1.GetProductById(existingId)).Result as OkObjectResult;
 
             // Assert
             Assert.NotNull(result);
-            Assert.IsType<OkObjectResult>(result.Result);
-            var okResult = result.Result as OkObjectResult;
-            Assert.NotNull(okResult);
-            var product = Assert.IsType<Product>(okResult.Value);
-            Assert.Equal(9, product.Id);
+            var product = Assert.IsType<Product>(result.Value);
+            Assert.Equal(existingId, product.Id);
             Assert.Equal("Adjustable Desk Riser", product.Name);
+            _mockService.Verify(s => s.GetProductById(existingId), Times.Once);
         }
 
         [Fact]
         public async Task GetProductById_ShouldReturnNotFoundForInvalidId()
         {
             // Arrange
-            int nonExistentId = 999;
+            const int nonExistingId = 999;
 
             // Act
-            var result = await _controllerV1.GetProductById(nonExistentId);
+            var result = await _controllerV1.GetProductById(nonExistingId);
 
             // Assert
             Assert.NotNull(result);
             Assert.IsType<NotFoundObjectResult>(result.Result);
+            _mockService.Verify(s => s.GetProductById(nonExistingId), Times.Once);
         }
 
         [Fact]
         public async Task UpdateProduct_ShouldUpdateAllProperties()
         {
             // Arrange
-            int productId = 3; // Use a different product ID for isolation
-            var originalProduct = _context.Products.AsNoTracking().FirstOrDefault(p => p.Id == productId);
-            
-            var newName = "Fully Updated Product";
-            var newDescription = "New Description for V1 Patch Test";
-            var newImgUri = "/images/full_update.jpg"; // New field
-            var newPrice = 55.55m;
-            var newCurrency = "USD"; // New field
-            var newStock = 200;
-            
+            const int productId = 3;            
             var patchDto = new ProductPatchDto
             {
-                Name = newName,
-                Description = newDescription,
-                ImgUri = newImgUri,
-                Price = newPrice,
-                Currency = newCurrency,
-                StockQuantity = newStock
+                Name = "Updated Product"
             };
+            _mockService.Setup(s => s.UpdateProduct(productId, It.IsAny<ProductPatchDto>()))
+                        .ReturnsAsync((true, true));
 
             // Act
             var result = await _controllerV1.UpdateProduct(productId, patchDto);
 
             // Assert
             Assert.IsType<NoContentResult>(result);
-            var updatedProduct = _context.Products.Find(productId);
-
-            // Check that ALL properties were successfully updated
-            Assert.Equal(newName, updatedProduct!.Name);
-            Assert.Equal(newDescription, updatedProduct.Description);
-            Assert.Equal(newImgUri, updatedProduct.ImgUri); // Assert new field
-            Assert.Equal(newPrice, updatedProduct.Price);
-            Assert.Equal(newCurrency, updatedProduct.Currency); // Assert new field
-            Assert.Equal(newStock, updatedProduct.StockQuantity);
-            
-            // Check that original properties are different from the new ones
-            Assert.NotEqual(originalProduct!.Name, updatedProduct.Name);
-            Assert.NotEqual(originalProduct.Price, updatedProduct.Price);
-        }
-
-        [Fact]
-        public async Task UpdateProduct_ShouldApplyNonNullPropertiesAndIgnoreNulls()
-        {
-            int productId = 1;
-            var originalProduct = _context.Products.Find(productId);
-            
-            // Arrange
-            var patchDto = new ProductPatchDto
-            {
-                Name = "Updated Name", // Non-null: Should change
-                Description = null,    // Null: Should be ignored
-                ImgUri = "/images/new_img.png", // Non-null: Should change
-                Price = 99.99m,        // Non-null: Should change
-                Currency = null,       // Null: Should be ignored
-                StockQuantity = null   // Null: Should be ignored
-            };
-
-            // Act
-            var result = await _controllerV1.UpdateProduct(productId, patchDto);
-
-            // Assert
-            Assert.IsType<NoContentResult>(result);
-            var updatedProduct = _context.Products.Find(productId);
-            Assert.Equal("Updated Name", updatedProduct!.Name);
-            Assert.Equal("/images/new_img.png", updatedProduct.ImgUri); // New field check
-            Assert.Equal(99.99m, updatedProduct.Price);
-            
-            // Assert Description, Currency, and StockQuantity were not changed (ignored due to null DTO values)
-            Assert.Equal(originalProduct!.Description, updatedProduct.Description);
-            Assert.Equal(originalProduct.Currency, updatedProduct.Currency); // New field check
-            Assert.Equal(originalProduct.StockQuantity, updatedProduct.StockQuantity);
+            _mockService.Verify(s => s.UpdateProduct(productId, It.IsAny<ProductPatchDto>()), Times.Once);
         }
 
         [Fact]
@@ -216,12 +119,33 @@ namespace ProductCatalogCaseStudy.Tests.Controllers.V1
             // Arrange
             int nonExistentId = 999;
             var patchDto = new ProductPatchDto { Name = "Test" };
+            _mockService.Setup(s => s.UpdateProduct(nonExistentId, It.IsAny<ProductPatchDto>()))
+                        .ReturnsAsync((false, false));
 
             // Act
             var result = await _controllerV1.UpdateProduct(nonExistentId, patchDto);
 
             // Assert
             Assert.IsType<NotFoundObjectResult>(result);
+            _mockService.Verify(s => s.UpdateProduct(nonExistentId, It.IsAny<ProductPatchDto>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task PartiallyUpdateProduct_ShouldReturnBadRequestOnServiceFailure()
+        {
+            // Arrange
+            int productId = 1;
+            var patchDto = new ProductPatchDto { Name = "Test" };
+            _mockService.Setup(s => s.UpdateProduct(productId, It.IsAny<ProductPatchDto>()))
+                        .ReturnsAsync((false, true));
+
+            // Act
+            var result = await _controllerV1.UpdateProduct(productId, patchDto);
+
+            // Assert
+            Assert.IsType<ObjectResult>(result);
+            Assert.Equal(500, ((ObjectResult)result).StatusCode);
+            _mockService.Verify(s => s.UpdateProduct(productId, It.IsAny<ProductPatchDto>()), Times.Once);
         }
 
         [Fact]
@@ -229,7 +153,7 @@ namespace ProductCatalogCaseStudy.Tests.Controllers.V1
         {
             // Arrange
             int productId = 1;
-            var patchDto = new ProductPatchDto { }; // Invalid price
+            var patchDto = new ProductPatchDto { Price = 0 }; // Invalid price
 
             // Act
             _controllerV1.ModelState.AddModelError(nameof(patchDto.Price), "Price must be greater than zero.");
@@ -237,13 +161,7 @@ namespace ProductCatalogCaseStudy.Tests.Controllers.V1
 
             // Assert
             Assert.IsType<BadRequestObjectResult>(result);
-        }
-
-        // --- Cleanup ---
-        public void Dispose()
-        {
-            _context.Database.CloseConnection();
-            _context.Dispose();
+            _mockService.Verify(s => s.UpdateProduct(It.IsAny<int>(), It.IsAny<ProductPatchDto>()), Times.Never);
         }
     }
 }

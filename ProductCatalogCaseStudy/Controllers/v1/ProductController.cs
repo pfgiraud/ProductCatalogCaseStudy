@@ -1,9 +1,10 @@
 using Asp.Versioning;
-using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProductCatalogCaseStudy.DTO;
 using ProductCatalogCaseStudy.Models;
+using ProductCatalogCaseStudy.Services.Contracts;
+
 namespace ProductCatalogCaseStudy.Controllers.V1
 {
     /// <summary>
@@ -13,11 +14,8 @@ namespace ProductCatalogCaseStudy.Controllers.V1
     [ApiVersion("1", Deprecated = true)]
     [ApiExplorerSettings(GroupName = "v1")]
     [ApiController]
-    public class ProductController(AppDbContext context, IMapper mapper) : ControllerBase
+    public class ProductController(IProductService productService) : ControllerBase
     {
-        private readonly AppDbContext _context = context;
-        private readonly IMapper _mapper = mapper;
-
         // READ ALL
         /// <summary>
         /// Retrieves a list of all products in the catalog.
@@ -27,8 +25,9 @@ namespace ProductCatalogCaseStudy.Controllers.V1
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<Product>>> GetAllProducts()
         {
-            // Simple query to fetch all products from the database
-            return Ok(await _context.Products.ToListAsync());
+            var products = await productService.GetProducts();
+
+            return Ok(products);
         }
 
         // READ ONE
@@ -43,15 +42,13 @@ namespace ProductCatalogCaseStudy.Controllers.V1
         public async Task<ActionResult<Product>> GetProductById(int id)
         {
             // Find the product by its primary key
-            var product = await _context.Products.FindAsync(id);
+            var product = await productService.GetProductById(id);
 
             if (product == null)
             {
-                // Returns a 404 Not Found response
                 return NotFound("Product ID not found");
             }
 
-            // Returns a 200 OK response with the product object
             return Ok(product);
         }
 
@@ -78,22 +75,22 @@ namespace ProductCatalogCaseStudy.Controllers.V1
                 return BadRequest(ModelState);
             }
 
-            var product = await _context.Products.FindAsync(id);
-            // Check if the ID in the URL matches the ID in the product body
-            if (product is null)
-            {
-                return NotFound("Product ID not found");
-            }
-
             if (productDto == null)
             {
                 return BadRequest("Request body cannot be empty.");
             }
 
-            _mapper.Map(productDto, product);
-            product.UpdatedAt = DateTime.UtcNow;
+            var (success, found)  = await productService.UpdateProduct(id, productDto);
+            // Check if the ID in the URL matches the ID in the product body
+            if (!found)
+            {
+                return NotFound("Product ID not found");
+            }
 
-            await _context.SaveChangesAsync();
+            if (!success)
+            {
+                return Problem("Update failed due to an unknown service error.", statusCode: StatusCodes.Status500InternalServerError);
+            }
 
             // Standard response for a successful PATCH request
             return NoContent();
