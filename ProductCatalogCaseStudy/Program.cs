@@ -60,7 +60,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // ----------------------------------------------------------------------
-// Register Service and Data access layers implmentations
+// Register Service and Data access layers implementations
 // ----------------------------------------------------------------------
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();

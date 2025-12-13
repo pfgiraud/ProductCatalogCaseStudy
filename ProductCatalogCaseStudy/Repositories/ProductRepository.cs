@@ -47,7 +47,6 @@ namespace ProductCatalogCaseStudy.Repositories
         /// <param name="product">The product to update.</param>
         public Task UpdateAsync(Product product)
         {
-            product.UpdatedAt = DateTime.UtcNow;
             return context.SaveChangesAsync();
         }
         private bool disposed = false;

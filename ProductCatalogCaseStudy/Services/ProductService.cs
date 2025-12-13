@@ -51,7 +51,6 @@ namespace ProductCatalogCaseStudy.Services
         /// <returns>A tuple representing the result state of the operation</returns>
         public async Task<(bool Success, bool Found)> UpdateProduct(int id, ProductPatchDto productDto)
         {
-
             var product = await repository.GetByIdAsync(id);
 
             if (product is null)
@@ -63,6 +62,7 @@ namespace ProductCatalogCaseStudy.Services
             {
                 mapper.Map(productDto, product);
 
+                product.UpdatedAt = DateTime.UtcNow;
                 await repository.UpdateAsync(product);
 
                 return (true, true);
