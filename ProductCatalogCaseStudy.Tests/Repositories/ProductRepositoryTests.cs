@@ -135,7 +135,7 @@ namespace ProductCatalogCaseStudy.Tests.Repositories
         }
 
         [Fact]
-        public async Task GetProductByIdAsync_ShouldReturnNotFoundForInvalidId()
+        public async Task GetProductByIdAsync_ShouldReturnNullForInvalidId()
         {
             // Arrange
             int nonExistentId = 999;
@@ -145,6 +145,28 @@ namespace ProductCatalogCaseStudy.Tests.Repositories
 
             // Assert
             Assert.Null(product);
+        }
+
+        [Fact]
+        public async Task InsertAsync_ShouldInsertProducts()
+        {
+            // Arrange
+            var product = new Product
+            {
+                Name = "New product",
+                Description = "New description",
+                ImgUri = "New description",
+                Sku = "New description",
+                Price = 99,
+                Currency = "USD",
+            };
+
+            // Act
+            await _repository.InsertAsync([product]);
+
+            // Assert
+            var products = await _repository.GetAllAsync();
+            Assert.Equal(product.Id, products.Max(p => p.Id));
         }
 
         [Fact]

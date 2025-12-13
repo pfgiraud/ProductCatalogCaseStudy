@@ -109,15 +109,15 @@ namespace ProductCatalogCaseStudy.Tests.Services
             _mockRepository.Setup(r => r.GetByIdAsync(productId)).ReturnsAsync((Product?)null);
 
             // Act
-            var result = await _service.GetProductById(productId);
+            var product = await _service.GetProductById(productId);
 
             // Assert
-            Assert.Null(result);
+            Assert.Null(product);
             _mockRepository.Verify(r => r.GetByIdAsync(productId), Times.Once);
         }
 
         [Fact]
-        public async Task UpdateProductAsync_ShouldReturnNotFound_WhenProductDoesNotExist()
+        public async Task UpdateProductAsync_ShouldReturnFalse_WhenProductDoesNotExist()
         {
             // Arrange
             int nonExistentId = 999;
