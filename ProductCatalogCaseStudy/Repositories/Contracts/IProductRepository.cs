@@ -27,6 +27,12 @@ namespace ProductCatalogCaseStudy.Repositories.Contracts
         public Task<IEnumerable<Product>> GetAllAsync(int pageNumber, int pageSize);
 
         /// <summary>
+        /// Insert new entries in the repository.
+        /// </summary>
+        /// <param name="products">The list of product to insert</param>
+        public Task InsertAsync(List<Product> products);
+
+        /// <summary>
         /// Updates the specified product in the repository.
         /// </summary>
         /// <param name="product">The product to update.</param>

@@ -79,13 +79,21 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     try
     {
-        var context = services.GetRequiredService<AppDbContext>();
         // Apply pending migrations automatically when the container starts
+        var context = services.GetRequiredService<AppDbContext>();
         context.Database.Migrate();
-
-        // An initial seed of data is inserted in the DB
+    }
+    catch (Exception ex)
+    {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        if(ProductSeeder.Initialize(context, "initial_seed_db.json", logger))
+        logger.LogError(ex, "An error occurred while migrating the database.");
+    }
+    try
+    {
+        // An initial seed of data is inserted in the DB
+        var productRepository = services.GetRequiredService<IProductRepository>();
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        if (ProductSeeder.Initialize(productRepository, "initial_seed_db.json", logger).Result)
         {
             logger.LogInformation("Database seeded with initial product data.");
         }
@@ -93,7 +101,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating the database.");
+        logger.LogError(ex, "An error occurred while seeding the database with initial data.");
     }
 }
 

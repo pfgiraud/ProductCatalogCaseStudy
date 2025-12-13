@@ -1,5 +1,5 @@
-using ProductCatalogCaseStudy.Controllers;
 using ProductCatalogCaseStudy.Models;
+using ProductCatalogCaseStudy.Repositories.Contracts;
 using System.Text.Json;
 
 namespace ProductCatalogCaseStudy.Data
@@ -13,10 +13,10 @@ namespace ProductCatalogCaseStudy.Data
         /// <summary>
         /// Read the external JSON seed data and insert it in the database  
         /// </summary>
-        public static bool Initialize(AppDbContext context, string jsonFilePath, ILogger logger)
+        public static async Task<bool> Initialize(IProductRepository repository, string jsonFilePath, ILogger logger)
         {
             // Check if the database already has been seeded.
-            if (context.Products.Any())
+            if (repository.GetAllAsync(1, 1).Result.Any())
             {
                 return false;
             }
@@ -52,8 +52,7 @@ namespace ProductCatalogCaseStudy.Data
                         item.Id = 0;
                     }
 
-                    context.Products.AddRange(products);
-                    context.SaveChanges();
+                    await repository.InsertAsync(products);
                     if (logger?.IsEnabled(LogLevel.Debug) == true)
                     {
                         logger.Log(

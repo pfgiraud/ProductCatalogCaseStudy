@@ -7,7 +7,7 @@ namespace ProductCatalogCaseStudy.Repositories
     /// <summary>
     /// Implements IProductRepository, hiding EF Core details from the service layer.
     /// </summary>
-    public class ProductRepository(AppDbContext context) : IProductRepository, IDisposable
+    public class ProductRepository(AppDbContext context) : IProductRepository
     {
         /// <summary>
         /// Retrieves a product by its unique identifier.
@@ -42,37 +42,22 @@ namespace ProductCatalogCaseStudy.Repositories
         }
 
         /// <summary>
+        /// Insert new entries in the repository.
+        /// </summary>
+        /// <param name="products">The list of product to insert</param>
+        public Task InsertAsync(List<Product> products)
+        {
+            context.Products.AddRange(products);
+            return context.SaveChangesAsync();
+        }
+
+        /// <summary>
         /// Updates the specified product in the repository.
         /// </summary>
         /// <param name="product">The product to update.</param>
         public Task UpdateAsync(Product product)
         {
             return context.SaveChangesAsync();
-        }
-        private bool disposed = false;
-
-        /// <summary>
-        /// Releases the unmanaged resources used by the object and, optionally, releases the managed resources.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!this.disposed)
-            {
-                if (disposing)
-                {
-                    context.Dispose();
-                }
-            }
-            this.disposed = true;
-        }
-
-        /// <summary>
-        /// Releases all resources used by the current instance of the class.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
         }
     }
 }
